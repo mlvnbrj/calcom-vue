@@ -248,4 +248,4 @@ npm publish --access public
 
 ## License
 
-[MIT](https://www.google.com/search?q=LICENSE) © [Applified](https://www.google.com/search?q=https://github.com/applified)
+[MIT](https://github.com/mlvnbrj/calcom-vue/blob/main/LICENSE) © [Melvin Morato Borja](https://github.com/mlvnbrj)
