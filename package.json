@@ -1,6 +1,6 @@
 {
   "name": "calcom-vue",
-  "version": "1.1.0",
+  "version": "1.1.2",
   "description": "Vue 3 & Nuxt plugin for seamless Cal.com modal and embed integration",
   "author": "Melvin Borja <melvinmoratoborja@gmail.com>",
   "license": "MIT",
@@ -13,6 +13,13 @@
     "booking",
     "scheduler"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mlvnbrj/calcom-vue.git"
+  },
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -29,15 +36,18 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "playground": "vite",
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
     "vue": "^3.0.0"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0", 
+    "@types/node": "^22.0.0",
+    "@vitejs/plugin-vue": "^6.0.10",
     "tsup": "^9.0.0",
-    "typescript": "^5.0.0", 
+    "typescript": "^5.0.0",
+    "vite": "^8.3.7",
     "vue": "^3.5.45"
   },
   "allowScripts": {
