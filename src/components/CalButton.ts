@@ -26,6 +26,7 @@ export const CalButton = defineComponent({
 
     const handleClick = (e: MouseEvent) => {
       e.preventDefault();
+      e.stopPropagation();
       openModal({
         calLink: props.calLink,
         namespace: props.namespace,

@@ -26,6 +26,9 @@ export const vCal: Directive<HTMLElement, string | CalDirectiveBinding | undefin
     el._calValue = binding.value;
 
     const handler = (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
       const val = el._calValue ?? binding.value;
       const { openModal } = useCal();
 
