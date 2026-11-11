@@ -38,10 +38,10 @@ bun add calcom-vue
 
 ### 1. Nuxt 3
 
-Create a client-only plugin at `plugins/cal.client.ts`:
+Create a universal plugin at `plugins/cal.ts` (do **not** use the `.client.ts` suffix so that the `v-cal` directive is registered during SSR, avoiding `getSSRProps` errors):
 
 ```ts
-// plugins/cal.client.ts
+// plugins/cal.ts
 import { defineNuxtPlugin } from '#app';
 import { createCal } from 'calcom-vue';
 
@@ -285,6 +285,22 @@ app.use(
     embedJsUrl: 'https://cal.yourdomain.com/embed/embed.js'
   })
 );
+```
+
+---
+
+## Playgrounds
+
+Test integrations locally in either standard Vue 3 or Nuxt 3:
+
+```bash
+# Run Vue 3 playground (default: http://localhost:3000)
+npm run playground
+# or
+npm run playground:vue
+
+# Run Nuxt 3 SSR playground (default: http://localhost:3000)
+npm run playground:nuxt
 ```
 
 ---

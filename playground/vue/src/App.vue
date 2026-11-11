@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { useCal, CalButton, CalEmbed } from 'calcom-vue';
 
-const calLink = ref('john-doe/30min'); // Public Cal.com test link
+const calLink = ref('applified/discovery'); // Public Cal.com test link
 const showInline = ref(true);
 const logs = ref<string[]>([]);
 

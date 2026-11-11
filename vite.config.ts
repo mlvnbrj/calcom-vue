@@ -4,7 +4,7 @@ import { resolve } from 'path';
 
 export default defineConfig({
   plugins: [vue()],
-  root: 'playground',
+  root: 'playground/vue',
   resolve: {
     alias: {
       'calcom-vue': resolve(__dirname, 'src/index.ts')
