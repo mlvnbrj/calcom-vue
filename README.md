@@ -1,16 +1,18 @@
 # calcom-vue
 
-A lightweight, type-safe Vue 3 and Nuxt 3 plugin for seamless Cal.com scheduling popup modals and embeds.
+A lightweight, type-safe Vue 3 and Nuxt 3 plugin for seamless Cal.com scheduling popup modals and inline embeds.
 
 ---
 
 ## Features
 
-* **Vue 3 & Nuxt 3 Ready**: Full SSR-safe client initialization out of the box.
-* **Multiple Integration Styles**: Use the declarative `v-cal` directive, the `<CalButton/>` component, or the programmatic `useCal()` composable.
-* **Self-Hosting Support**: Configurable origin for self-hosted Cal instances.
-* **Lazy Loaded**: Dynamically injects Cal.com's embed script only when needed on the client.
-* **Fully Typed**: Written in TypeScript with complete type definitions.
+* **Vue 3 & Nuxt 3 Ready**: Full SSR-safe client initialization out of the box with `getSSRProps()`.
+* **Multiple Integration Styles**: Declarative `v-cal` directive, pre-built `<CalButton />` for modals, `<CalEmbed />` (or `<Cal />`) for inline calendar layouts, and programmatic `useCal()` composable.
+* **Inline & Modal Embeds**: Full support for both Cal.com popup modals and inline calendar containers.
+* **Modern Theming**: Supports `cssVarsPerTheme` for custom light/dark brand colors, `theme`, and custom layouts.
+* **Self-Hosting Support**: Configurable `origin` and `embedJsUrl` for self-hosted Cal instances.
+* **Lazy Loaded & Idempotent**: Injects Cal.com's loader script only when needed on the client, preserving namespace isolation and avoiding settings overwrite.
+* **Fully Typed**: Written in TypeScript with complete type definitions (`.d.ts`).
 
 ---
 
@@ -28,7 +30,6 @@ yarn add calcom-vue
 
 # bun
 bun add calcom-vue
-
 ```
 
 ---
@@ -41,23 +42,23 @@ Create a client-only plugin at `plugins/cal.client.ts`:
 
 ```ts
 // plugins/cal.client.ts
+import { defineNuxtPlugin } from '#app';
 import { createCal } from 'calcom-vue';
 
 export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.use(
     createCal({
-      // Optional default options
+      origin: 'https://app.cal.com',
+      namespace: 'my-team',
       theme: 'auto',
       layout: 'month_view',
-      styles: {
-        branding: {
-          brandColor: '#2563eb'
-        }
+      cssVarsPerTheme: {
+        light: { 'cal-brand': '#2563eb' },
+        dark: { 'cal-brand': '#3b82f6' }
       }
     })
   );
 });
-
 ```
 
 ### 2. Vue 3 (Vite / SPA)
@@ -75,26 +76,63 @@ const app = createApp(App);
 app.use(
   createCal({
     theme: 'auto',
-    layout: 'month_view'
+    layout: 'month_view',
+    forwardQueryParams: true
   })
 );
 
 app.mount('#app');
-
 ```
 
 ---
 
 ## Usage
 
-### Option 1: Directive (`v-cal`)
+### 1. Inline Embed (`<CalEmbed />` / `<Cal />`)
 
-Add the `v-cal` directive to any clickable element. Pass either your link string or an object with configuration options.
+Render the interactive Cal.com scheduler directly inside your page layout:
 
 ```vue
+<script setup lang="ts">
+import { CalEmbed } from 'calcom-vue';
+</script>
+
 <template>
-  <!-- Simple string (username/event-slug) -->
-  <button v-cal="'john-doe/30min'">
+  <div class="calendar-wrapper">
+    <!-- Using <CalEmbed /> or alias <Cal /> -->
+    <CalEmbed
+      calLink="john-doe/30min"
+      :config="{ layout: 'month_view', theme: 'light' }"
+      style="width: 100%; height: 650px; overflow: scroll;"
+    />
+  </div>
+</template>
+```
+
+#### `<CalEmbed />` Props
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `calLink` | `string` | **Required** | The Cal.com link (e.g., `username/event-slug`). |
+| `namespace` | `string` | `undefined` | Optional Cal namespace for multi-calendar pages. |
+| `config` | `Record<string, any>` | `{}` | Optional embed config (prefill inputs, layout, theme). |
+
+---
+
+### 2. Directive (`v-cal`)
+
+Add `v-cal` to any native button, link, or clickable element to trigger the booking popup modal.
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue';
+
+const activeLink = ref('john-doe/30min');
+</script>
+
+<template>
+  <!-- Simple string (reactive) -->
+  <button v-cal="activeLink">
     Book a Call
   </button>
 
@@ -102,6 +140,7 @@ Add the `v-cal` directive to any clickable element. Pass either your link string
   <button 
     v-cal="{
       link: 'john-doe/discovery',
+      namespace: 'sales',
       config: {
         theme: 'dark',
         layout: 'week_view',
@@ -112,17 +151,25 @@ Add the `v-cal` directive to any clickable element. Pass either your link string
   >
     Book Discovery Call
   </button>
-</template>
 
+  <!-- Using Cal.com data attributes fallback -->
+  <button v-cal data-cal-link="john-doe/quick-chat" data-cal-namespace="support">
+    Quick Chat
+  </button>
+</template>
 ```
 
 ---
 
-### Option 2: Component (`<CalButton/>`)
+### 3. Modal Button (`<CalButton />`)
 
-The component renders a button that triggers the Cal.com modal on click.
+A pre-built component for opening booking popups:
 
 ```vue
+<script setup lang="ts">
+import { CalButton } from 'calcom-vue';
+</script>
+
 <template>
   <!-- Basic usage -->
   <CalButton calLink="john-doe/30min">
@@ -133,6 +180,7 @@ The component renders a button that triggers the Cal.com modal on click.
   <CalButton 
     tag="a"
     calLink="john-doe/strategy" 
+    namespace="custom-namespace"
     :config="{
       theme: 'light',
       notes: 'Strategy Session'
@@ -142,31 +190,23 @@ The component renders a button that triggers the Cal.com modal on click.
     Book Strategy Session
   </CalButton>
 </template>
-
 ```
-
-#### `<CalButton/>` Props
-
-| Prop | Type | Default | Description |
-| --- | --- | --- | --- |
-| `calLink` | `string` | **Required** | The Cal.com link (e.g., `username/event-slug`). |
-| `config` | `Record<string, any>` | `{}` | Optional modal config (layout, theme, prefill inputs). |
-| `tag` | `string` | `'button'` | The HTML tag to render. |
 
 ---
 
-### Option 3: Composable (`useCal`)
+### 4. Programmatic Composable (`useCal`)
 
-Use the composable for programmatic triggers, dynamic logic, and booking lifecycle callbacks.
+Use `useCal` for custom workflows, modals, inline mounting, asset preloading, and event tracking:
 
 ```vue
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import { useCal } from 'calcom-vue';
 
-const { openModal, on } = useCal();
+// Optionally specify default namespace: useCal('my-namespace')
+const { openModal, preload, on, off, setUI, getApi } = useCal();
 
-function handleCustomClick() {
+function openBooking() {
   openModal({
     calLink: 'john-doe/30min',
     config: {
@@ -178,24 +218,41 @@ function handleCustomClick() {
   });
 }
 
+function handleHover() {
+  preload({ calLink: 'john-doe/30min' });
+}
+
 onMounted(() => {
-  // Listen for Cal.com events (e.g. analytics or conversion tracking)
-  on({
-    action: 'bookingSuccessful',
-    callback: (event) => {
-      console.log('Meeting confirmed:', event.detail.data);
-    }
-  });
+  // Listen for Cal.com events (e.g. conversion tracking)
+  // Passing autoCleanup = true unsubscribes on scope disposal
+  on(
+    {
+      action: 'bookingSuccessful',
+      callback: (event) => {
+        console.log('Meeting confirmed:', event.detail);
+      }
+    },
+    true
+  );
 });
 </script>
 
 <template>
-  <button @click="handleCustomClick">
+  <button @mouseenter="handleHover" @click="openBooking">
     Book via Composable
   </button>
 </template>
-
 ```
+
+#### `useCal()` Methods
+
+* **`openModal({ calLink, namespace?, config? })`**: Opens the booking modal popup.
+* **`inline({ elementOrSelector, calLink, namespace?, config? })`**: Mounts an inline calendar into an element or CSS selector.
+* **`preload({ calLink, namespace? })`**: Preloads calendar assets for snappy responsiveness.
+* **`on({ action, namespace?, callback }, autoCleanup?)`**: Subscribes to events (`bookingSuccessful`, `linkReady`, etc.).
+* **`off({ action, namespace?, callback? })`**: Unsubscribes from events.
+* **`setUI(uiOptions, namespace?)`**: Dynamically adjusts UI options for a namespace.
+* **`getApi(namespace?)`**: Returns a Promise resolving to the raw `Cal` API queue function.
 
 ---
 
@@ -205,44 +262,30 @@ onMounted(() => {
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `origin` | `string` | `'[https://app.cal.com](https://app.cal.com)'` | Cal origin URL (override for self-hosted instances). |
-| `theme` | `'light' | 'dark' | 'auto'` | `undefined` | Theme setting for the embed popup. |
-| `layout` | `'month_view' | 'week_view' | 'column_view'` | `undefined` | Calendar layout type. |
-| `styles` | `Record<string, any>` | `undefined` | Custom branding styles, such as `{ branding: { brandColor: '#000000' } }`. |
-| `hideEventTypeDetails` | `boolean` | `false` | Hide event header details in the modal. |
+| `origin` | `string` | `'https://app.cal.com'` | Cal origin URL (override for self-hosted instances). |
+| `embedJsUrl` | `string` | `'{origin}/embed/embed.js'` | Direct URL to `embed.js` script. |
+| `namespace` | `string` | `undefined` | Default global namespace. |
+| `forwardQueryParams` | `boolean` | `true` | Forward current URL query parameters to the Cal iframe. |
+| `cssVarsPerTheme` | `CalCssVarsPerTheme` | `undefined` | Brand colors per theme (e.g. `{ light: { 'cal-brand': '#2563eb' } }`). |
+| `theme` | `'light' \| 'dark' \| 'auto'` | `undefined` | Default theme setting. |
+| `layout` | `'month_view' \| 'week_view' \| 'column_view'` | `'month_view'` | Calendar layout style. |
+| `hideEventTypeDetails`| `boolean` | `false` | Hide event header details in the modal. |
+| `useSlotsViewOnSmallScreen` | `boolean \| string` | `undefined` | Responsive slots view for mobile viewports. |
 
 ---
 
 ## Self-Hosted Cal.com Instances
 
-To point to your self-hosted instance, update the `origin` setting during initialization:
+For self-hosted instances, specify `origin` (and optionally `embedJsUrl`):
 
 ```ts
-app.use(createCal({
-  origin: 'https://cal.yourdomain.com'
-}));
-
+app.use(
+  createCal({
+    origin: 'https://cal.yourdomain.com',
+    embedJsUrl: 'https://cal.yourdomain.com/embed/embed.js'
+  })
+);
 ```
-
----
-
-## Publishing Checklist (For Maintainers)
-
-1. Ensure the package name in `package.json` matches `"calcom-vue"`.
-2. Build the distribution assets:
-```bash
-npm run build
-
-```
-
-
-3. Publish to npm under public scope:
-```bash
-npm publish --access public
-
-```
-
-
 
 ---
 

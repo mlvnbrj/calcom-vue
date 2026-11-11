@@ -1,8 +1,29 @@
-import type { CalInitOptions } from './types/cal';
+import type { CalApi, CalInitOptions } from './types/cal';
 
-export function loadCalScript(options: CalInitOptions = {}): Promise<any> {
+let globalOptions: CalInitOptions = {};
+const initializedNamespaces = new Set<string>();
+
+export function setGlobalCalOptions(options?: CalInitOptions) {
+  if (options) {
+    globalOptions = { ...globalOptions, ...options };
+  }
+}
+
+export function getGlobalCalOptions(): CalInitOptions {
+  return globalOptions;
+}
+
+export function loadCalScript(options?: CalInitOptions): Promise<CalApi | null> {
   return new Promise((resolve) => {
     if (typeof window === 'undefined') return resolve(null);
+
+    if (options) {
+      setGlobalCalOptions(options);
+    }
+
+    const mergedOptions = { ...globalOptions, ...options };
+    const origin = mergedOptions.origin || 'https://app.cal.com';
+    const embedJsUrl = mergedOptions.embedJsUrl || `${origin}/embed/embed.js`;
 
     if (!window.Cal || !window.Cal.loaded) {
       (function (C: any, A: string, L: string) {
@@ -32,45 +53,55 @@ export function loadCalScript(options: CalInitOptions = {}): Promise<any> {
           }
           p(cal, ar);
         };
-      })(window, 'https://app.cal.com/embed/embed.js', 'init');
+      })(window, embedJsUrl, 'init');
     }
 
-    const origin = options.origin || 'https://app.cal.com';
+    const targetNamespace = mergedOptions.namespace;
+    const nsKey = targetNamespace || '__root__';
 
-    // Initialize with optional namespace
-    if (options.namespace) {
-      window.Cal('init', options.namespace, { origin });
-    } else {
-      window.Cal('init', { origin });
+    // Only run init and initial UI config once per namespace unless explicitly asked
+    if (!initializedNamespaces.has(nsKey)) {
+      if (targetNamespace) {
+        window.Cal('init', targetNamespace, { origin });
+      } else {
+        window.Cal('init', { origin });
+      }
+
+      window.Cal.config = window.Cal.config || {};
+      if (mergedOptions.forwardQueryParams !== undefined) {
+        window.Cal.config.forwardQueryParams = mergedOptions.forwardQueryParams;
+      }
+
+      const api = targetNamespace && window.Cal.ns ? window.Cal.ns[targetNamespace] : window.Cal;
+
+      const uiConfig: Record<string, any> = {};
+      if (mergedOptions.layout !== undefined) uiConfig.layout = mergedOptions.layout;
+      if (mergedOptions.hideEventTypeDetails !== undefined) uiConfig.hideEventTypeDetails = mergedOptions.hideEventTypeDetails;
+      if (mergedOptions.cssVarsPerTheme !== undefined) uiConfig.cssVarsPerTheme = mergedOptions.cssVarsPerTheme;
+      if (mergedOptions.styles !== undefined) uiConfig.styles = mergedOptions.styles;
+      if (mergedOptions.theme !== undefined) uiConfig.theme = mergedOptions.theme;
+      if (mergedOptions.useSlotsViewOnSmallScreen !== undefined) {
+        uiConfig.useSlotsViewOnSmallScreen = mergedOptions.useSlotsViewOnSmallScreen;
+      }
+
+      if (Object.keys(uiConfig).length > 0 && typeof api === 'function') {
+        api('ui', uiConfig);
+      }
+
+      initializedNamespaces.add(nsKey);
     }
-
-    // Configure query param forwarding
-    window.Cal.config = window.Cal.config || {};
-    window.Cal.config.forwardQueryParams = options.forwardQueryParams ?? true;
-
-    // Direct UI commands to the target namespace if provided, otherwise root Cal
-    const api = options.namespace ? window.Cal.ns[options.namespace] : window.Cal;
-
-    const uiConfig: Record<string, any> = {
-      hideEventTypeDetails: options.hideEventTypeDetails ?? false,
-      layout: options.layout ?? 'month_view'
-    };
-
-    if (options.cssVarsPerTheme) {
-      uiConfig.cssVarsPerTheme = options.cssVarsPerTheme;
-    }
-    if (options.styles) {
-      uiConfig.styles = options.styles; // deprecated
-    }
-    if (options.theme) {
-      uiConfig.theme = options.theme;
-    }
-    if (options.useSlotsViewOnSmallScreen !== undefined) {
-      uiConfig.useSlotsViewOnSmallScreen = options.useSlotsViewOnSmallScreen;
-    }
-
-    api('ui', uiConfig);
 
     resolve(window.Cal);
   });
+}
+
+export async function getCalApi(namespace?: string): Promise<CalApi | null> {
+  await loadCalScript();
+  if (typeof window === 'undefined' || !window.Cal) return null;
+
+  const targetNs = namespace ?? globalOptions.namespace;
+  if (targetNs && window.Cal.ns?.[targetNs]) {
+    return window.Cal.ns[targetNs];
+  }
+  return window.Cal;
 }

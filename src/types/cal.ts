@@ -11,6 +11,7 @@ export interface CalCssVarsPerTheme {
 
 export interface CalInitOptions {
   origin?: string;
+  embedJsUrl?: string;
   namespace?: string;
   forwardQueryParams?: boolean;
   cssVarsPerTheme?: CalCssVarsPerTheme;
@@ -32,14 +33,40 @@ export interface CalModalOptions {
   config?: Record<string, any>;
 }
 
+export interface CalInlineOptions {
+  elementOrSelector: string | HTMLElement;
+  calLink: string;
+  namespace?: string;
+  config?: Record<string, any>;
+}
+
+export interface CalPreloadOptions {
+  calLink: string;
+  namespace?: string;
+}
+
 export interface CalEventCallback {
   action: string;
   namespace?: string;
   callback: (event: CustomEvent<any>) => void;
 }
 
+export interface CalOffCallback {
+  action: string;
+  namespace?: string;
+  callback?: (event: CustomEvent<any>) => void;
+}
+
+export type CalApi = {
+  (action: string, ...args: any[]): void;
+  q?: any[];
+  ns?: Record<string, CalApi>;
+  loaded?: boolean;
+  config?: Record<string, any>;
+};
+
 declare global {
   interface Window {
-    Cal: any;
+    Cal: CalApi;
   }
 }

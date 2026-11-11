@@ -1,8 +1,8 @@
 import type { Directive, DirectiveBinding } from 'vue';
 import { useCal } from '../composables/useCal';
 
-interface CalDirectiveBinding {
-  link: string;
+export interface CalDirectiveBinding {
+  link?: string;
   namespace?: string;
   config?: Record<string, any>;
 }
@@ -12,33 +12,54 @@ type CalElement = HTMLElement & {
   _calValue?: string | CalDirectiveBinding;
 };
 
-export const vCal: Directive<HTMLElement, string | CalDirectiveBinding> = {
-  mounted(el: HTMLElement, binding: DirectiveBinding<string | CalDirectiveBinding>) {
-    const handler = () => {
+function parseConfigAttribute(attr: string | null): Record<string, any> | undefined {
+  if (!attr) return undefined;
+  try {
+    return JSON.parse(attr);
+  } catch {
+    return undefined;
+  }
+}
+
+export const vCal: Directive<HTMLElement, string | CalDirectiveBinding | undefined> = {
+  mounted(el: CalElement, binding: DirectiveBinding<string | CalDirectiveBinding | undefined>) {
+    el._calValue = binding.value;
+
+    const handler = (e: MouseEvent) => {
+      const val = el._calValue ?? binding.value;
       const { openModal } = useCal();
-      if (typeof binding.value === 'string') {
+
+      if (typeof val === 'string') {
         const namespace = el.getAttribute('data-cal-namespace') || undefined;
-        openModal({ calLink: binding.value, namespace });
-      } else if (binding.value && binding.value.link) {
-        openModal({
-          calLink: binding.value.link,
-          namespace: binding.value.namespace || el.getAttribute('data-cal-namespace') || undefined,
-          config: binding.value.config
-        });
+        const config = parseConfigAttribute(el.getAttribute('data-cal-config'));
+        openModal({ calLink: val, namespace, config });
+      } else if (val && typeof val === 'object' && val.link) {
+        const namespace = val.namespace || el.getAttribute('data-cal-namespace') || undefined;
+        const config = val.config || parseConfigAttribute(el.getAttribute('data-cal-config'));
+        openModal({ calLink: val.link, namespace, config });
+      } else {
+        // Fallback to data attributes if no directive value was passed
+        const calLink = el.getAttribute('data-cal-link');
+        if (calLink) {
+          const namespace = el.getAttribute('data-cal-namespace') || undefined;
+          const config = parseConfigAttribute(el.getAttribute('data-cal-config'));
+          openModal({ calLink, namespace, config });
+        }
       }
     };
 
-    (el as any)._calHandler = handler;
+    el._calHandler = handler;
     el.addEventListener('click', handler);
   },
-  updated(el: CalElement, binding: DirectiveBinding<string | CalDirectiveBinding>) {
+  updated(el: CalElement, binding: DirectiveBinding<string | CalDirectiveBinding | undefined>) {
     el._calValue = binding.value;
   },
-  unmounted(el: HTMLElement) {
-    if ((el as any)._calHandler) {
-      el.removeEventListener('click', (el as any)._calHandler);
-      delete (el as any)._calHandler;
+  unmounted(el: CalElement) {
+    if (el._calHandler) {
+      el.removeEventListener('click', el._calHandler);
+      delete el._calHandler;
     }
+    delete el._calValue;
   },
   getSSRProps() {
     return {};

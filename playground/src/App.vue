@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useCal, CalButton } from 'calcom-vue';
+import { useCal, CalButton, CalEmbed } from 'calcom-vue';
 
-const calLink = ref('applified/discovery'); // Public Cal.com test link
+const calLink = ref('john-doe/30min'); // Public Cal.com test link
+const showInline = ref(true);
 const logs = ref<string[]>([]);
 
-const { openModal, on } = useCal();
+const { openModal, preload, on } = useCal();
 
 function addLog(message: string) {
   const timestamp = new Date().toLocaleTimeString();
@@ -19,8 +20,6 @@ function handleProgrammaticOpen() {
     config: {
       layout: 'month_view',
       theme: 'light',
-      name: 'Test Visitor',
-      email: 'visitor@example.com',
       cssVarsPerTheme: {
         light: {
           'cal-brand': '#FF53C7'
@@ -28,6 +27,11 @@ function handleProgrammaticOpen() {
       }
     }
   });
+}
+
+function handlePreload() {
+  addLog(`Preloading calendar for "${calLink.value}"`);
+  preload({ calLink: calLink.value });
 }
 
 onMounted(() => {
@@ -43,34 +47,52 @@ onMounted(() => {
   on({
     action: 'linkReady',
     callback: () => {
-      addLog('Cal modal iframe is ready.');
+      addLog('Cal modal/embed iframe is ready.');
     }
   });
 });
 </script>
 
 <template>
-  <main class="max-w-3xl mx-auto py-12 px-6">
+  <main class="max-w-4xl mx-auto py-12 px-6">
     <header class="mb-8 border-b border-slate-800 pb-6">
       <h1 class="text-3xl font-bold tracking-tight text-white mb-2">
         Cal.com Vue Playground
       </h1>
       <p class="text-slate-400">
-        Test integration modes live against Cal.com's embed loader.
+        Test integration modes live against Cal.com's embed loader: Modals, Directive, Composable, and Inline Embeds.
       </p>
     </header>
 
     <!-- Cal Link Target Config -->
     <section class="mb-8 bg-slate-800/60 p-4 rounded-xl border border-slate-700">
-      <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-        Cal.com Username/Event Slug
-      </label>
-      <input
-        v-model="calLink"
-        type="text"
-        placeholder="username/event"
-        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-      />
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex-1">
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+            Cal.com Username/Event Slug
+          </label>
+          <input
+            v-model="calLink"
+            type="text"
+            placeholder="username/event"
+            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+          />
+        </div>
+        <div class="flex items-end gap-2">
+          <button
+            @click="handlePreload"
+            class="py-2.5 px-4 bg-slate-700 hover:bg-slate-600 text-white font-medium text-xs rounded-lg transition"
+          >
+            Preload Link
+          </button>
+          <button
+            @click="showInline = !showInline"
+            class="py-2.5 px-4 bg-slate-700 hover:bg-slate-600 text-white font-medium text-xs rounded-lg transition"
+          >
+            {{ showInline ? 'Hide Inline' : 'Show Inline' }}
+          </button>
+        </div>
+      </div>
     </section>
 
     <!-- Action Cards -->
@@ -118,6 +140,23 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Inline Embed Section -->
+    <section v-if="showInline" class="mb-8 bg-slate-900 border border-slate-800 rounded-xl p-5">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <h2 class="font-semibold text-white">4. Inline Embed Component (&lt;CalEmbed /&gt; or &lt;Cal /&gt;)</h2>
+          <p class="text-xs text-slate-400">Renders the scheduling interface directly in your layout.</p>
+        </div>
+      </div>
+      <div class="border border-slate-800 rounded-lg overflow-hidden h-[600px] bg-slate-950">
+        <CalEmbed
+          :calLink="calLink"
+          :config="{ layout: 'month_view' }"
+          style="width: 100%; height: 100%; overflow: scroll;"
+        />
+      </div>
+    </section>
+
     <!-- Event Logging Terminal -->
     <section class="bg-slate-950 border border-slate-800 rounded-xl p-5">
       <div class="flex justify-between items-center mb-3">
@@ -133,7 +172,7 @@ onMounted(() => {
       </div>
       <div class="font-mono text-xs text-slate-300 space-y-1.5 h-36 overflow-y-auto">
         <div v-if="logs.length === 0" class="text-slate-600 italic">
-          No events captured yet. Click one of the buttons above to trigger actions.
+          No events captured yet. Click one of the buttons above or interact with the inline embed to trigger actions.
         </div>
         <div v-for="(log, idx) in logs" :key="idx" class="text-emerald-400">
           {{ log }}
